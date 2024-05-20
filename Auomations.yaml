@@ -1,0 +1,39 @@
+- id: 'xxxxxx'
+  alias: Sun Moon Tracker
+  description: ''
+  trigger:
+  - platform: time_pattern
+    minutes: /5
+  condition: []
+  action:
+  - choose:
+    - conditions:
+      - condition: numeric_state
+        entity_id: sensor.sun_solar_elevation
+        above: 0
+      sequence:
+      - service: number.set_value
+        metadata: {}
+        data:
+          value: '{{ states(''sensor.sun_solar_azimuth'') | float(0) }}'
+        target:
+          entity_id: number.sunmoonaz_sun_azimuth_number
+  - delay:
+      hours: 0
+      minutes: 0
+      seconds: 10
+      milliseconds: 0
+  - choose:
+    - conditions:
+      - condition: numeric_state
+        entity_id: sensor.astroweather_moon_altitude
+        above: 0
+      sequence:
+      - service: number.set_value
+        metadata: {}
+        data:
+          value: '{{ states(''sensor.astroweather_moon_azimuth'') | float(0) }}'
+        target:
+          entity_id: number.sunmoonaz_moon_azimuth_number
+  mode: single
+

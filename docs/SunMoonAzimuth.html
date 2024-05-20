@@ -1,0 +1,164 @@
+<h1 id="sun-moon-azimuth-tracking-with-sg90-servos-home-assistant-and-esphome">Sun-Moon Azimuth Tracking with SG90 servos, Home Assistant and ESPHome</h1>
+<p>by Phil Pownall</p>
+<p>This is a variant of the Sun Altitude-Azimuth Tracker that tracks both the Sun and Moon Azimuths using:</p>
+<ul>
+<li>a Home Assistant Automation, </li>
+<li>an ESPHome device driving two servo motors, and </li>
+<li>a 3D-printed mechanism of two cogs, two platforms, and a base.</li>
+</ul>
+<p>You could track any astronomical object - and make an Electronic Antikythera mechanism.</p>
+<p>This device is astonishing in its simplicity - but it replicates something that in the mechanical age required years/decades of painstaking astronomical observation, brain-freezing cog ratio mathematics, and extraordinary skill in building devices.</p>
+<h3 id="ingredients">Ingredients</h3>
+<ul>
+<li>A Home Assistant server</li>
+<li>An ESP32 device running ESPHome</li>
+<li>A 608ZZ bearing</li>
+<li>Two SG90 or MG90 180-degree servo motors</li>
+<li>A 3D-printed mount consisting of a base, two cogs, and two platforms</li>
+</ul>
+<h3 id="optional-ingredients">Optional ingredients</h3>
+<ul>
+<li>An ESP32 Expansion board to supply power and additional pins</li>
+<li>A 9V power adapter for the Expansion board</li>
+<li>An SSD1306 128x64 OLED display</li>
+<li>LEDs to illustrate when the Sun or Moon is visible above the horizon</li>
+</ul>
+<h3 id="derivative-ingredients">Derivative ingredients</h3>
+<ul>
+<li>A compass rose for the base to show the azimuth</li>
+</ul>
+<p>You load up and adopt an ESP32 module as you would normally using ESPHome.</p>
+<p>The servo motors are connected to the ESP32, which is where an Expansion board comes in handy as it has lots of pin rows that match the servo 3-pin connector, and you can configure the power row to supply 5V using the expansion board jumper.  The board also has a 9V supply barrel connector and a power regulator so you can supply enough power for the 2 servos and the ESP32.</p>
+<h2 id="the-mount">The Mount</h2>
+<p>The mount was designed in TinkerCAD, providing a base with two SG90 cases for the servos placed at right angles to each other.
+STL files for the design are available in this repository.</p>
+<p>The platforms consist of a 1X cog and a pointer.  One platform has a hole in the centre; the other has a centre shaft. 
+The two platforms are stacked on top of the bearing which is placed in the top of the base.
+The 2X cogs are placed on top of each servo, and interlock with the 1X cogs.</p>
+<p>To set up the tracker, </p>
+<ul>
+<li>Set each servo to its centre position (180) using the number slider, </li>
+<li>Position the base with the top (Moon) servo pointing North (360), and </li>
+<li>Move the platforms to the 180-degree point </li>
+<li>Tighten the 2X cog screw into the servo.</li>
+<li>Start the Sun Moon Tracker Automation in Home Assistant</li>
+</ul>
+<p><a href="SunMoonTracker.png">Sun Moon Tracker</a></p>
+<h1 id="the-esphome-code">The ESPHome code</h1>
+<p>The ESPHome yaml code simply consists of Number template and Servo definitions for two servos: the Sun Azimuth servo and the Moon Azimuth servo.  Note how the formula for the Servo maps the Azimuth (from 0 to 360 degrees) onto the servo position (-1 to +1).  Since the servo motor can rotate approximately 180 degrees, the 2X Cog increases the platform range to 360 degrees.</p>
+<h2 id="number-templates">Number Templates</h2>
+<h3 id="example-definition-of-number-templates-to-drive-the-sun-and-moon-azimuth-servos">Example Definition of number templates to drive the Sun and Moon Azimuth servos</h3>
+<pre><code>number:
+  # Define a number template to control servo 1
+  # servo 1 is sun azimuth: 0 to 360: map to -1 to +1
+  - platform: template
+    name: Sun Azimuth Number
+    id: number_sun_azimuth
+    optimistic: True
+#    internal: True
+    mode: slider
+    min_value: 0
+    initial_value: 180
+    max_value: 360
+    step: 0.1
+    set_action:
+      then:
+        - servo.write:
+            id: servo_sun_azimuth
+            level: !lambda &#39;return ((x / 360.0)* 2.0) - 1.0;&#39;
+
+  # Define a number template to control servo 2
+  # servo 2 is moon azimuth: 0 to 360: map to -1 to +1
+  - platform: template
+    name: Moon Azimuth Number
+    id: number_moon_azimuth
+    optimistic: true
+#    internal: True
+    mode: slider
+    min_value: 0
+    initial_value: 180
+    max_value: 360
+    step: 0.1
+    set_action:
+      then:
+        - servo.write:
+            id: servo_moon_azimuth
+            level: !lambda &#39;return ((x / 360.0)* 2.0) - 1.0;&#39;
+</code></pre>
+<h2 id="servo-definitions">Servo Definitions</h2>
+<p>The servos are defined as usual with two outputs, and two servo definitions:</p>
+<h3 id="example-definition-of-outputs-and-servos-for-azimuth-and-altitude">Example Definition of outputs and servos for Azimuth and Altitude</h3>
+<pre><code>substitutions:
+  # pin assignments
+  servo_sun_azimuth: GPIO19
+  servo_moon_azimuth: GPIO21
+
+output:
+
+  # Servo output 1   
+  - platform: ledc
+    pin: ${servo_sun_azimuth}
+    id: ledc_1
+    channel: 0
+    frequency: 50 Hz
+
+  # Servo output 2
+  - platform: ledc
+    pin: ${servo_moon_azimuth}
+    id: ledc_2
+    channel: 1
+    frequency: 50 Hz
+
+servo:
+    # servo 1
+  - id: servo_sun_azimuth
+    output: ledc_1
+    auto_detach_time: 1s
+    transition_length: 8s
+
+    # servo 2
+  - id: servo_moon_azimuth
+    output: ledc_2
+    auto_detach_time: 1s
+    transition_length: 8s
+</code></pre>
+<h1 id="the-home-assistant-automation">The Home Assistant Automation</h1>
+<p>The Home Assistant Automation runs every 5 minutes.  If the Sun is above the horizon, the ESPHome Sun Azimuth servo is updated with the Sun Azimuth position. 
+Likewise, if the Moon is above the horizon, the ESPHome Moon Azimuth servo is updated with the Moon Azimuth position.
+The Sun Azimuth and Elevation sensors are provided by the Sun Integration.
+The Moon Azimuth and Elevation (Altitude) sensors are provided by the AstroWeather custom Integration via HACS.</p>
+<h2 id="the-sun-moon-tracker-automation">The Sun Moon Tracker Automation</h2>
+<pre><code>alias: Sun Moon Tracker
+description: &quot;&quot;
+trigger:
+  - platform: time_pattern
+    minutes: /5
+condition: []
+action:
+  - choose:
+      - conditions:
+          - condition: numeric_state
+            entity_id: sensor.sun_solar_elevation
+            above: 0
+        sequence:
+          - service: number.set_value
+            metadata: {}
+            data:
+              value: &quot;{{ states(&#39;sensor.sun_solar_azimuth&#39;) | float(0) }}&quot;
+            target:
+              entity_id: number.espnode10_sun_azimuth_number
+  - choose:
+      - conditions:
+          - condition: numeric_state
+            entity_id: sensor.astroweather_moon_altitude
+            above: 0
+        sequence:
+          - service: number.set_value
+            metadata: {}
+            data:
+              value: &quot;{{ states(&#39;sensor.astroweather_moon_azimuth&#39;) | float(0) }}&quot;
+            target:
+              entity_id: number.espnode10_moon_azimuth_number
+mode: single
+</code></pre>
+
