@@ -146,7 +146,7 @@ action:
             data:
               value: &quot;{{ states(&#39;sensor.sun_solar_azimuth&#39;) | float(0) }}&quot;
             target:
-              entity_id: number.espnode10_sun_azimuth_number
+              entity_id: number.sunmoonaz_sun_azimuth_number
   - choose:
       - conditions:
           - condition: numeric_state
@@ -158,7 +158,7 @@ action:
             data:
               value: &quot;{{ states(&#39;sensor.astroweather_moon_azimuth&#39;) | float(0) }}&quot;
             target:
-              entity_id: number.espnode10_moon_azimuth_number
+              entity_id: number.sunmoonaz_moon_azimuth_number
 mode: single
 </code></pre>
 

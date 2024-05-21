@@ -2,7 +2,7 @@
 # All the updates to the azimuth positions are made by the Home Assistant SunMoonAutomation
 
 substitutions:
-  nodename: SunMoonAz
+  nodename: sunmoonaz
 
   # pin assignments
   servo_sun_azimuth: GPIO19
